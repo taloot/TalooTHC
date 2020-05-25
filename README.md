@@ -7,7 +7,10 @@ designed to work with Linuxcnc
 
 How to use :- 
 
-define your SSID, then upload the sketch,, and access the configration for it from webgui 
+define your SSID, then upload the sketch,,
+open serial monitor, and  u can see your ip.. use it in ur web browser 
+
+and access the configration for it from webgui 
 
 my esp32 similar to this
 https://roboticx.ps/?attachment_id=4630
