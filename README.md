@@ -5,7 +5,7 @@ read capacitance and conver it to PWM , with min max calibration, for fiber lase
 designed to work with Linuxcnc
 Torch Hight Controller,
 # Main Features
--12 bit ADC.
+- 12 bit ADC.
 - 6khz sampling rate.
 - adjustable pwm output range 15bit.
 - display graph for analog and digital frequency.
