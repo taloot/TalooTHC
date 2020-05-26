@@ -27,4 +27,4 @@ my esp32 similar to this
 https://roboticx.ps/?attachment_id=4630
 make sure u use the right PIN,, 
  # GUI ScreenShot
- ![](/screenshot/2.jpg)
+ ![](/screenshot/1.jpg)
