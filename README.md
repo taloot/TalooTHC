@@ -28,3 +28,6 @@ https://roboticx.ps/?attachment_id=4630
 make sure u use the right PIN,, 
  # GUI ScreenShot
  ![](/screenshot/1.png)
+  ![](/screenshot/11.png)
+   ![](/screenshot/111.png)
+    ![](/screenshot/1111.png)
