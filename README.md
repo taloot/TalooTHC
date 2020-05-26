@@ -4,7 +4,7 @@ THC for fiber laser and plasma,, based on esp32,,, all variables can be set usin
 read capacitance and conver it to PWM , with min max calibration, for fiber laser,, co2 auto foucas, or flame cutter
 designed to work with Linuxcnc
 Torch Hight Controller,
-Main Features
+# Main Features
 1-12 bit ADC
 2-6khz sampling rate
 3-adjustable pwm output range 15bit
