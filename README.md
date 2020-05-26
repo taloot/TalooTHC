@@ -7,6 +7,10 @@ Torch Hight Controller,
 
 
 How to use :- 
+there is Sketch and data
+here is the method of uploading, Sketch, and Data
+
+https://randomnerdtutorials.com/install-esp32-filesystem-uploader-arduino-ide/
 
 define your SSID, then upload the sketch,,
 open serial monitor, and  u can see your ip.. use it in ur web browser 
