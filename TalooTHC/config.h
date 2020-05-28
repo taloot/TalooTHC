@@ -1,178 +1,98 @@
+#include <EEPROM.h>
 
-//#include <EEPROM.h>
+const int allowed_freq = 5 * 1000 * 1000;
 
-const char index_html[] PROGMEM = R"rawliteral(
-<!DOCTYPE HTML><html>
-<head>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <style>
-    html {font-family: Helvetica; font-size: 24px; display: inline-block; text-align: center;}
-    body {max-width: 600px; margin:0px auto;}
-    span {color: red;}
-    div  {margin-top: 10px;}
-    input[type=text] {height: 40px; font-size: 20px; width: 150px; direction: rtl; padding: 2px 5px;}
-    input[type=button] {background-color: #4CAF50; color: white; border: none; cursor: pointer; font-size: 24px; padding: 10px 30px; }
-    button {background: #e01a22; border: none; padding: 14px 20px; font-size: 24px; color: white; font-weight: 800; cursor: pointer; width: 200px;}
-    button.ana {background: #4CAF50;}
-    butto.capan {background: #e01a22;}
-  </style>
-</head>
-<body>
-  <div>
-    <button type="button" class="ana" onclick="showTab(0)">Analog</button>
-    <button type="button" class="capa" onclick="showTab(1)">Capacitance</button>
-  </div>
-  <div id="tab_ana">
-    <h2>Analog to PWM</h2>
-    <p>Frequency range <span id="s_min_freq">%FREQ_MIN_STYLE%</span> ~ <span id="s_max_freq">%FREQ_MAX_STYLE%</span></p>
-    <div>
-      <label>Min Frequency(Hz)</label>
-      <input type="text" id="min_freq" value="%MINFREQVALUE%"/>
-      <input type="button" value="Set" onclick="set_min()"/>
-    </div>
-    <div>
-      <label>Max Frequency(Hz)</label>
-      <input type="text" id="max_freq" value="%MAXFREQVALUE%"/>
-      <input type="button" value="Set" onclick="set_max()"/>
-    </div>
-  </div>
+unsigned long min_freq;// = 1.2 * 1000;
+unsigned long max_freq;// =  12 * 1000;
+
+unsigned long min_capa;// =   1 * 1000;
+unsigned long max_capa;// =   4 * 1000;
+
+const unsigned int socket_port = 1337;
+String my_ip;
+
+
+void EEPROM16_Write(uint8_t a, uint16_t b){
+  EEPROM.write(a, lowByte(b));
+  EEPROM.write(a + 1, highByte(b));
+}
+
+uint16_t EEPROM16_Read(uint8_t a){
+  return word(EEPROM.read(a + 1), EEPROM.read(a));
+}
+
+//This function will write a 4 byte (32bit) long to the eeprom at
+//the specified address to adress + 3.
+void EEPROMWritelong(int address, long value)
+{
+  //Decomposition from a long to 4 bytes by using bitshift.
+  //One = Most significant -> Four = Least significant byte
+  byte four = (value & 0xFF);
+  byte three = ((value >> 8) & 0xFF);
+  byte two = ((value >> 16) & 0xFF);
+  byte one = ((value >> 24) & 0xFF);
   
-  <div id="tab_capa">
-    <h2>Capacitance to PWM</h2>
-    <p>Min Value: <span id="s_min_capa">%CAPA_MIN_STYLE%</span><p>
-    <p>Max Value: <span id="s_max_capa">%CAPA_MAX_STYLE%</span><p>
-
-    <p>Current Value: <span id="s_capa">%CAPA_VALUE%</span><p>
-    <div>
-      <button type="button" onclick="set_capamin()">Set Min</button>
-      <button type="button" onclick="set_capamax()">Set Max</button>
-    </div>
-  </div>
-<script>
-
-var mode = 0;   // 0 - analog     1 - capacitance
-
-function showTab(tab){
-  if ( tab == 0 ) {
-    document.getElementById("tab_ana").style.display = "";
-    document.getElementById("tab_capa").style.display = "none";
-  } else {
-    document.getElementById("tab_ana").style.display = "none";
-    document.getElementById("tab_capa").style.display = "";
-  }
-  set_mode(tab);
+  //Write the 4 bytes into the eeprom memory.
+  EEPROM.write(address, four);
+  EEPROM.write(address + 1, three);
+  EEPROM.write(address + 2, two);
+  EEPROM.write(address + 3, one);
 }
 
-function set_min(){
-  var xhr = new XMLHttpRequest();
-  xhr.onreadystatechange = function() {
-    if (this.readyState == 4 && this.status == 200) {
-      if ( this.responseText == "FAILED" ) {
-        alert("Failed! Min Frequency is invalid!");
-      } else {
-        document.getElementById("s_min_freq").innerHTML = this.responseText;
-      }
-    }
-  };
-  var value = document.getElementById("min_freq").value;
-  xhr.open("GET", "/setmin?val=" + value, true);
-  xhr.send();
+//This function will return a 4 byte (32bit) long from the eeprom
+//at the specified address to adress + 3.
+long EEPROMReadlong(long address)
+{
+  //Read the 4 bytes from the eeprom memory.
+  long four = EEPROM.read(address);
+  long three = EEPROM.read(address + 1);
+  long two = EEPROM.read(address + 2);
+  long one = EEPROM.read(address + 3);
   
+  //Return the recomposed long by using bitshift.
+  return ((four << 0) & 0xFF) + ((three << 8) & 0xFFFF) + ((two << 16) & 0xFFFFFF) + ((one << 24) & 0xFFFFFFFF);
 }
-
-function set_max(){
-  var xhr = new XMLHttpRequest();
-  xhr.onreadystatechange = function() {
-    if (this.readyState == 4 && this.status == 200) {
-      if ( this.responseText == "FAILED" ) {
-        alert("Failed! Max Frequency is invalid!");
-      } else {
-        document.getElementById("s_max_freq").innerHTML = this.responseText;
-      }
-    }
-  };
-  var value = document.getElementById("max_freq").value;
-  xhr.open("GET", "/setmax?val=" + value, true);
-  xhr.send();
-}
-
-function set_capamax(){
-  var xhr = new XMLHttpRequest();
-  xhr.onreadystatechange = function() {
-    if (this.readyState == 4 && this.status == 200) {
-      if ( this.responseText == "FAILED" ) {
-        alert("Failed! Max Capacitance is invalid!");
-      } else {
-        document.getElementById("s_max_capa").innerHTML = this.responseText;
-      }
-    }
-  };
-  xhr.open("GET", "/setcapamax", true);
-  xhr.send();
-}
-
-function set_capamin(){
-  var xhr = new XMLHttpRequest();
-  xhr.onreadystatechange = function() {
-    if (this.readyState == 4 && this.status == 200) {
-      if ( this.responseText == "FAILED" ) {
-        alert("Failed! Min Capacitance is invalid!");
-      } else {
-        document.getElementById("s_min_capa").innerHTML = this.responseText;
-      }
-    }
-  };
-  xhr.open("GET", "/setcapamin", true);
-  xhr.send();
-}
-
-function set_mode(n) {
-  cur_mode = n;
-
-  var xhr = new XMLHttpRequest();  
-  xhr.open("GET", "/setmode?val=" + cur_mode, true);
-  xhr.send();
-  
-}
-
-function get_capa() {
-  if ( cur_mode == 0 ) {
-    return;
-  }
-
-  var xhr = new XMLHttpRequest();
-  xhr.onreadystatechange = function() {
-    console.log(this.readyState);
-    console.log(this.status);
-    if (this.readyState == 4 && this.status == 200) {
-      if ( this.responseText == "FAILED" ) {
-        document.getElementById("s_capa").innerHTML = "0";
-      } else {
-        document.getElementById("s_capa").innerHTML = this.responseText;
-      }
-    } else if (this.readyState == 4 && this.status == 500) {
-      document.getElementById("s_capa").innerHTML = "invalid!";
-    }
-  };
-  
-  xhr.open("GET", "/getcapa", true);
-  xhr.send();
-}
-
-showTab(0);
-setInterval(get_capa, 1000);
-
-</script>
-</body>
-</html>
-)rawliteral";
-
-
 
 void loadConfig() {
-  
+  min_freq = EEPROMReadlong(0);
+  max_freq = EEPROMReadlong(4);
+  min_capa = EEPROMReadlong(8);
+  max_capa = EEPROMReadlong(12);
 }
 
 void saveConfig() {
-  
+  EEPROMWritelong(0, min_freq);
+  EEPROMWritelong(4, max_freq);
+  EEPROMWritelong(8, min_capa);
+  EEPROMWritelong(12, max_capa);
+  EEPROM.commit();
+}
+
+String make_style(int freq) {
+  if ( freq >= 1000 * 1000 ) { //MHz
+    return String((float)freq / 1000 / 1000) + "MHz";
+  } else if ( freq >= 1000 ) { //KHz
+    return String((float)freq / 1000) + "KHz";
+  } else {
+    return String(freq) + "Hz";
+  }
+  return String();
+}
+
+int mapping_ana(int ana) {
+  float res = 32768.0;
+  float min_pwm = res / max_freq * min_freq;
+
+  return min_pwm + (res - min_pwm) * (ana / res);
+}
+
+// Replaces placeholder with LED state value
+String processor(const String& var){
+  Serial.println(var);
+  if ( var == "WEBSOCKETURL" ) {
+    String url;
+    url = my_ip + ":" + String(socket_port);
+    return url;
+  }
+  return String();
 }
