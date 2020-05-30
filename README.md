@@ -7,9 +7,9 @@ Torch Hight Controller,
 # Main Features
 - 12 bit ADC.
 - 6khz sampling rate.
-- adjustable pwm output range 15bit.
+- adjustable pwm output range.
 - display graph for analog and digital frequency.
-- smoothing and avarage of readings. 
+- IIR filter for Capacitance Value 
 
 https://www.youtube.com/watch?v=CStLGPyVeLw
 
