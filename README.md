@@ -9,7 +9,7 @@ Torch Hight Controller,
 - 6khz sampling rate.
 - adjustable pwm output range.
 - display graph for analog and digital frequency.
-- IIR filter for Capacitance Value 
+- IIR filter for Capacitance Value. 
 - setting Data saved in eeprom.
 https://www.youtube.com/watch?v=CStLGPyVeLw
 
