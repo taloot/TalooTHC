@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Generate PWM</title>
+
+	<link rel="icon" type="image/png" href="icon.png">
+
+	<link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-9aIt2nRpC12Uk9gS9baDl411NQApFmC26EwAOH8WgZl5MYYxFfc+NcPb1dKGj7Sk" crossorigin="anonymous">
+	<link rel="stylesheet" type="text/css" href="style.css">
+	<link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
+
+	<script language="javascript" type="text/javascript">
+	</script>
+</head>
+
+<body>
+	<section class="section_50">
+		<div class="container">
+			<div class="row">
+				<div class="col-md-12 text-right">
+					<p>Device Status: <span id="s_con"></span></p>
+				</div>
+			</div>
+			<div class="row">
+				<div class="col-md-12 text-center">
+					<button type="button" class="btn btn-lg btn-primary mode-button" onclick="showTab(0)">Analog</button>
+    				<button type="button" class="btn btn-lg btn-success mode-button" onclick="showTab(1)">Capacitance</button>
+				</div>
+			</div>
+		</div>
+	</section>
+
+	<section class="section_15" id="section_ana">
+		<div class="container">
+			<div class="row ana-row">
+				<div class="col-md-12">
+					<div class="row text-center ana-title">
+						<h2>Analog to PWM</h2>
+    					<p>Frequency range <span id="s_min_freq">0</span> ~ <span id="s_max_freq">0</span></p>
+					</div>
+					<div class="row text-center ana-form">
+						<label class="mb-0">Min Frequency(Hz)</label>
+  						<input class="form-control" type="text" id="min_freq" value="0"/>
+  						<button class="btn btn-primary mb-1 set-btn" type="button" onclick="set_freqmin()">Set</button>
+					</div>
+					<div class="row text-center ana-form">
+						<label class="mb-0">Max Frequency(Hz)</label>
+						<input class="form-control" type="text" id="max_freq" value="0"/>
+						<button class="btn btn-primary mb-1 set-btn" type="button" onclick="set_freqmax()">Set</button>
+					</div>
+
+					<div class="row ana-chart" id="anachart">
+						
+					</div>
+
+				</div>
+			</div>
+		</div>
+	</section>
+
+	<section class="section_15" id="section_capa">
+		<div class="container">
+			<div class="row capa-row">
+				<div class="col-md-12">
+					<div class="row text-center capa-title">
+						<h2>Capacitance to PWM</h2>
+						<p>Min Value: <span id="s_min_capa">0</span><p>
+						<p>Max Value: <span id="s_max_capa">0</span><p>
+						<p>Current Value: <span id="s_capa">0</span><p>
+					</div>
+					<div class="row text-center capa-form">
+						<button type="button" class="btn btn-success" onclick="set_capamin()">Set Min</button>
+						<button type="button" class="btn btn-success" onclick="set_capamax()">Set Max</button>
+					</div>
+					<div class="row capa-chart" id="capachart">
+						
+					</div>
+				</div>
+			</div>
+		</div>
+	</section>
+
+
+	<script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+	<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/js/bootstrap.min.js" integrity="sha384-OgVRvuATP1z7JjHLkuOU7Xw704+h835Lr+6QL9UvYjZE3Ipu6Tp75j7Bh/kR0JKI" crossorigin="anonymous"></script>
+	<script type="text/javascript" src="https://canvasjs.com/assets/script/jquery.canvasjs.min.js"></script>
+	<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
+
+	<script type="text/javascript">
+		var url = "ws://%WEBSOCKETURL%/";//"ws://192.168.78.245:1337/";
+
+		toastr.options = {
+		  "closeButton": false,
+		  "debug": false,
+		  "newestOnTop": false,
+		  "progressBar": false,
+		  "positionClass": "toast-top-right",
+		  "preventDuplicates": false,
+		  "onclick": null,
+		  "showDuration": "300",
+		  "hideDuration": "1000",
+		  "timeOut": "5000",
+		  "extendedTimeOut": "1000",
+		  "showEasing": "swing",
+		  "hideEasing": "linear",
+		  "showMethod": "fadeIn",
+		  "hideMethod": "fadeOut"
+		}
+
+		var chart1, chart2;
+		var resolution = 32768;		// 15-bit resolution
+		var max_freq = 0.0;
+
+		var chartValue11 = 0, chartValue12 = 0;
+		var chartValue21 = 0, chartValue22 = 0;
+
+		// Call this to connect to the WebSocket server
+		function wsConnect() {
+		    
+		    // Connect to WebSocket server
+		    websocket = new WebSocket(url);
+
+		    document.getElementById("s_con").innerHTML = "connecting...";
+		    toastr["info"]("Connecting device...");
+		    
+		    // Assign callbacks
+		    websocket.onopen = function(evt) { onOpen(evt) };
+		    websocket.onclose = function(evt) { onClose(evt) };
+		    websocket.onmessage = function(evt) { onMessage(evt) };
+		    websocket.onerror = function(evt) { onError(evt) };
+		}
+
+		// Called when a WebSocket connection is established with the server
+		function onOpen(evt) {
+
+		    // Log connection state
+		    console.log("Connected");
+
+		    document.getElementById("s_con").innerHTML = "OK";
+		    toastr["success"]("Device connected.");
+		}
+
+		// Called when the WebSocket connection is closed
+		function onClose(evt) {
+
+		    // Log disconnection state
+		    console.log("Disconnected");
+
+			document.getElementById("s_con").innerHTML = "Failed";
+		    toastr["error"]("Connecting device failed.");
+		    		    
+		    // Try to reconnect after a few seconds
+		    setTimeout(function() { wsConnect(url) }, 2000);
+		}
+
+		// Called when a message is received from the server
+		function onMessage(evt) {
+
+		    // Print out our received message
+		    console.log("Received: " + evt.data);
+
+		    var msg_type = evt.data.substring(0, 4);
+		    var msg_data = evt.data.substring(5);
+		    
+		    // Update circle graphic with LED state
+		    switch(msg_type) {
+		    	// Change mode
+		        case "am00":		// Analog mode
+		            console.log("ana mode on");
+		            showTab(0);
+		            break;
+		        case "am01":		// Capacitance mode
+		            console.log("capa mode on");
+		            showTab(1);
+		            break;
+		        // Set value confirm msg
+		        case "am10":		// Set Frequency Min
+		        	if ( msg_data == "ok" )
+		        		toastr["success"]("Frequency min is set successfully.");
+		        	else
+		        		toastr["error"]("Set frequency min is failed.")
+		        	break;
+		        case "am11":		// Set Frequency Max
+		        	if ( msg_data == "ok" )
+		        		toastr["success"]("Frequency max is set successfully.");
+		        	else
+		        		toastr["error"]("Set frequency max is failed.")
+		        	break;
+		        case "am12":		// Set Capacitance Min
+		        	if ( msg_data == "ok" )
+		        		toastr["success"]("Capacitance min is set successfully.");
+		        	else
+		        		toastr["error"]("Set capacitance min is failed.")
+		        	break;
+		        case "am13":		// Set Capacitance Max
+		        	if ( msg_data == "ok" )
+		        		toastr["success"]("Capacitance max is set successfully.");
+		        	else
+		        		toastr["error"]("Set capacitance max is failed.")
+		        	break;
+		        // Receive data msg
+		        case "am50":		// Styled Frequency Min
+		        	document.getElementById("s_min_freq").innerHTML = msg_data;
+		        	break;
+		        case "am51":		// Styled Frequency Max
+		        	document.getElementById("s_max_freq").innerHTML = msg_data;
+		        	break;
+		        case "am52":		// Frequency Min value
+		        	document.getElementById("min_freq").value = msg_data;
+		        	break;
+		        case "am53":		// Frequency Max value
+		        	document.getElementById("max_freq").value = msg_data;
+		        	max_freq = parseInt(msg_data);
+		        	break;
+		        case "am54":		// Capacitance Min value
+		        	document.getElementById("s_min_capa").innerHTML = msg_data;
+		        	break;
+		        case "am55":		// Capacitance Max value
+		        	document.getElementById("s_max_capa").innerHTML = msg_data;
+		        	break;
+		        case "am56":
+		        	var params = msg_data.split("&");
+		        	//updateChart1(parseInt(params[0]), parseInt(params[1]));
+		        	chartValue11 = parseInt(params[0]);
+		        	chartValue12 = parseInt(params[1]);
+		        	break;
+		        case "am57":
+		        	var params = msg_data.split("&");
+		        	document.getElementById("s_capa").innerHTML = params[0];
+		        	//updateChart2(parseInt(params[0]), parseInt(params[1]));
+		        	chartValue21 = parseInt(params[0]);
+		        	chartValue22 = parseInt(params[1]);
+		        	break;
+		        default:
+		            break;
+		    }
+		}
+
+		// Called when a WebSocket error occurs
+		function onError(evt) {
+		    console.log("ERROR: " + evt.data);
+		}
+
+		// Sends a message to the server (and prints it to the console)
+		function doSend(message) {
+			if ( websocket.readyState != 1 ) {
+				console.log("WebSocket is not ready");
+			} else {
+			    console.log("Sending: " + message);
+			    websocket.send(message);
+			}
+		}
+
+		// Call the init function as soon as the page loads
+		window.addEventListener("load", wsConnect, false);
+
+	</script>
+
+	<script type="text/javascript">
+		var mode = 0;   // 0 - analog     1 - capacitance
+
+		function showTab(tab) {
+			if ( tab == 0 ) {
+				document.getElementById("section_ana").style.display = "";
+				document.getElementById("section_capa").style.display = "none";
+			} else {
+				document.getElementById("section_ana").style.display = "none";
+				document.getElementById("section_capa").style.display = "";
+			}
+			set_mode(tab);
+			chart1.render();
+			chart2.render();
+		}
+
+		function set_mode(n) {
+			if ( mode == n )
+				return;
+			mode = n;
+			doSend("wm0" + mode);
+		}
+
+		function set_freqmin() {
+			var value = document.getElementById("min_freq").value;
+			doSend("wm10:" + value);
+		}
+
+		function set_freqmax() {
+			var value = document.getElementById("max_freq").value;
+			doSend("wm11:" + value);
+		}
+
+		function set_capamin() {
+			doSend("wm12");
+		}
+
+		function set_capamax() {
+			doSend("wm13");
+		}
+
+
+
+	</script>
+
+
+
+	<script type="text/javascript">
+		var dataLength = 25; // number of dataPoints visible at any point
+		var x1 = 0, x2 = 0;
+
+		var dps11 = [];
+		var dps12 = [];
+
+		var dps21 = [];
+		var dps22 = [];
+
+		var updateChart1 = function(value1, value2) {
+			var vol = ( 3.3 / 4096 ) * value1;
+			//var pwm = max_freq * ( value2 / parseFloat(resolution) );
+			dps11.push({
+				x: x1,
+				y: vol
+			});
+			dps12.push({
+				x: x1,
+				y: value2
+			});
+			x1++;
+			if ( dps11.length > dataLength ) {
+				dps11.shift();
+			}
+			if ( dps12.length > dataLength ) {
+				dps12.shift();
+			}
+			chart1.render();
+		}
+
+		var updateChart2 = function(value1, value2) {
+			//var pwm = max_freq * ( value1 / parseFloat(resolution) );
+			dps21.push({
+				x: x2,
+				y: value1
+			});
+			dps22.push({
+				x: x2,
+				y: value2
+			});
+			x2++;
+			if ( dps21.length > dataLength ) {
+				dps21.shift();
+			}
+			if ( dps22.length > dataLength ) {
+				dps22.shift();
+			}
+			chart2.render();
+		}
+
+		var updateChart = function() {
+			if ( mode == 0 ) {
+				updateChart1(chartValue11, chartValue12);
+			} else if ( mode == 1 ) {
+				updateChart2(chartValue21, chartValue22);
+			}
+		}
+
+		window.onload = function () {
+			chart1 = new CanvasJS.Chart("anachart", {
+				exportEnabled: true,
+				title :{
+					text: "Analog Graph"
+				},
+				toolTip: {
+					shared: true
+				},
+				axisX: {
+					title: "Time",
+					suffix : " "
+				},
+				axisY: {
+					title: "Analog",
+					titleFontColor: "#4F81BC",
+					suffix : " V",
+					lineColor: "#4F81BC",
+					tickColor: "#4F81BC",
+					includeZero: true
+				},
+				axisY2: {
+					title: "PWM",
+					titleFontColor: "#C0504E",
+					suffix : " Hz",
+					lineColor: "#C0504E",
+					tickColor: "#C0504E",
+					includeZero: true
+				},
+				data: [{
+					type: "spline",
+					name: "Volage",
+					xValueFormatString: "#### sec",
+					yValueFormatString: "#,##0.00 V",
+					dataPoints: dps11
+				},
+				{
+					type: "spline",  
+					axisYType: "secondary",
+					name: "PWM",
+					yValueFormatString: "#,##0.# Hz",
+					dataPoints: dps12
+				}]
+			});
+
+			
+			chart2 = new CanvasJS.Chart("capachart", {
+				exportEnabled: true,
+				title :{
+					text: "Capacitance Graph"
+				},
+				toolTip: {
+					shared: true
+				},
+				axisX: {
+					title: "Time",
+					suffix : " "
+				},
+				axisY: {
+					title: "Capacitance",
+					titleFontColor: "#4F81BC",
+					suffix : " UF",
+					lineColor: "#4F81BC",
+					tickColor: "#4F81BC",
+					includeZero: true
+				},
+				axisY2: {
+					title: "PWM",
+					titleFontColor: "#C0504E",
+					suffix : " Hz",
+					lineColor: "#C0504E",
+					tickColor: "#C0504E",
+					includeZero: true
+				},
+				data: [{
+					type: "spline",
+					name: "Capacitance",
+					xValueFormatString: "#### sec",
+					yValueFormatString: "#,###0 UF",
+					dataPoints: dps21
+				},
+				{
+					type: "spline",  
+					axisYType: "secondary",
+					name: "PWM",
+					yValueFormatString: "#,##0.# Hz",
+					dataPoints: dps22
+				}]
+			});
+
+			showTab(0);
+
+			setInterval(updateChart, 10);
+
+		}
+	</script>
+</body>
+
+</html>
