@@ -11,6 +11,8 @@ Torch Hight Controller,
 - display graph for analog and digital frequency.
 - smoothing and avarage of readings. 
 
+https://www.youtube.com/watch?v=CStLGPyVeLw
+
 
 # How to use :- 
 there is Sketch and data
@@ -31,3 +33,5 @@ make sure u use the right PIN,,
   ![](/screenshot/11.png)
    ![](/screenshot/111.png)
     ![](/screenshot/1111.png)
+    
+    
